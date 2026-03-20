@@ -202,6 +202,13 @@ app.post("/api/trains/:id/join", authenticateToken, (req, res) => {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
 
+  const existing = db.prepare(
+    "SELECT id FROM train_participants WHERE train_id = ? AND user_id = ?"
+  ).get(trainId, req.user.username);
+  if (existing) {
+    return res.status(409).json({ error: "Olet jo liittynyt tähän junaan" });
+  }
+
   const now = Date.now();
   db.prepare(
     "INSERT INTO train_participants (id, train_id, user_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)"

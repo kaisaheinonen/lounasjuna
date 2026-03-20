@@ -144,30 +144,23 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
                     )}
                   </span>
                 ))}
-                <button
-                  className="join-btn"
-                  onClick={() => setJoiningTrain(train.id)}
-                >
-                  + Liity
-                </button>
+                {!train.participants.some((p) => p.userId === currentUser?.username) && (
+                  joiningTrain === train.id ? (
+                    <div className="join-form">
+                      <button className="btn-primary" onClick={() => handleJoin(train.id)}>
+                        🚂 Hyppää kyytiin
+                      </button>
+                      <button className="btn-secondary" onClick={() => setJoiningTrain(null)}>
+                        Peruuta
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="join-btn" onClick={() => setJoiningTrain(train.id)}>
+                      + Liity
+                    </button>
+                  )
+                )}
               </div>
-
-              {joiningTrain === train.id && (
-                <div className="join-form">
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleJoin(train.id)}
-                  >
-                    🚂 Hyppää kyytiin
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setJoiningTrain(null)}
-                  >
-                    Peruuta
-                  </button>
-                </div>
-              )}
             </div>
           ))}
         </div>
