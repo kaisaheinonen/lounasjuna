@@ -94,6 +94,14 @@ function App() {
     if (res.ok) fetchSharedData();
   };
 
+  const handleUnvote = async (restaurantId) => {
+    const res = await fetch(`${API_BASE}/votes/${restaurantId}?date=${selectedDate}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) fetchSharedData();
+  };
+
   const handleCreateTrain = async (formData) => {
     const res = await fetch(`${API_BASE}/trains`, {
       method: "POST",
@@ -188,8 +196,10 @@ function App() {
             restaurants={restaurants}
             votes={votes}
             onVote={handleVote}
+            onUnvote={handleUnvote}
             loading={loading}
             error={error}
+            currentUser={user}
           />
         )}
         {activeTab === "trains" && (

@@ -45,6 +45,13 @@ db.exec(`
   );
 `);
 
+// Lisätään unique-indeksi äänestyksille (yksi ääni per käyttäjä/ravintola/päivä)
+try {
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_unique ON votes (restaurant_id, user_id, date)");
+} catch (e) {
+  // indeksi saattaa jo olla olemassa
+}
+
 // Migroi käyttäjät users.json → SQLite jos taulu on tyhjä
 const USERS_FILE = path.join(__dirname, "data", "users.json");
 try {

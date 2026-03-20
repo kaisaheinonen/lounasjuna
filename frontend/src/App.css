@@ -164,6 +164,13 @@ body {
   transition: background 0.15s, transform 0.1s;
 }
 .vote-btn:hover { background: #ffe5d6; transform: scale(1.05); }
+.vote-btn.voted {
+  background: #e8f5e9;
+  border-color: #81c784;
+  color: #2e7d32;
+  cursor: pointer;
+}
+.vote-btn.voted:hover { background: #ffebee; border-color: #e57373; color: #c62828; }
 .vote-count { font-size: 0.88rem; }
 
 .voters { padding: 0 16px 10px; display: flex; flex-wrap: wrap; gap: 6px; }

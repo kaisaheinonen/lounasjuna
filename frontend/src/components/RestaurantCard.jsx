@@ -13,10 +13,11 @@ function formatPrice(price) {
   return String(price).replace("e", " €");
 }
 
-export default function RestaurantCard({ restaurant, votes, onVote }) {
+export default function RestaurantCard({ restaurant, votes, onVote, onUnvote, currentUser }) {
   const [expanded, setExpanded] = useState(false);
 
   const voteCount = votes ? votes.length : 0;
+  const hasVoted = currentUser && votes ? votes.some((v) => v.userId === currentUser.username) : false;
 
   // Support both mock data (cuisine) and live data (hours)
   const metaParts = [
@@ -34,14 +35,15 @@ export default function RestaurantCard({ restaurant, votes, onVote }) {
         </div>
         <div className="restaurant-actions">
           <button
-            className="vote-btn"
+            className={`vote-btn${hasVoted ? " voted" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
-              onVote(restaurant.id);
+              if (hasVoted) onUnvote(restaurant.id);
+              else onVote(restaurant.id);
             }}
-            title="Äänestä tätä ravintolaa"
+            title={hasVoted ? "Peru äänesi" : "Äänestä tätä ravintolaa"}
           >
-            👍 <span className="vote-count">{voteCount}</span>
+            {hasVoted ? "✔️" : "👍"} <span className="vote-count">{voteCount}</span>
           </button>
           <span className="expand-icon">{expanded ? "▲" : "▼"}</span>
         </div>

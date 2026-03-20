@@ -87,19 +87,19 @@ app.post("/api/restaurants/refresh", async (req, res) => {
 app.get("/api/votes", (req, res) => {
   const date = req.query.date || todayKey();
   const rows = db.prepare(
-    "SELECT restaurant_id, display_name, created_at FROM votes WHERE date = ?"
+    "SELECT restaurant_id, user_id, display_name, created_at FROM votes WHERE date = ?"
   ).all(date);
   const result = {};
   for (const row of rows) {
     const key = String(row.restaurant_id);
     if (!result[key]) result[key] = [];
-    result[key].push({ name: row.display_name, timestamp: row.created_at });
+    result[key].push({ name: row.display_name, userId: row.user_id, timestamp: row.created_at });
   }
   res.json(result);
 });
 
 // POST /api/votes  { restaurantId, name, date? }
-app.post("/api/votes", (req, res) => {
+app.post("/api/votes", authenticateToken, (req, res) => {
   const { restaurantId, name } = req.body;
   if (!restaurantId || typeof restaurantId !== "number") {
     return res.status(400).json({ error: "restaurantId puuttuu tai ei ole numero" });
@@ -109,13 +109,38 @@ app.post("/api/votes", (req, res) => {
   const rawDate = typeof req.body.date === "string" ? req.body.date : today;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && rawDate >= today ? rawDate : today;
   const now = Date.now();
-  const userId = req.body.userId || "anon";
+  const userId = req.user.username;
+
+  const existing = db.prepare(
+    "SELECT id FROM votes WHERE restaurant_id = ? AND user_id = ? AND date = ?"
+  ).get(restaurantId, userId, date);
+  if (existing) {
+    return res.status(409).json({ error: "Olet jo äänestänyt tätä ravintolaa tälle päivälle" });
+  }
 
   db.prepare(
     "INSERT INTO votes (restaurant_id, user_id, display_name, date, created_at) VALUES (?, ?, ?, ?, ?)"
   ).run(restaurantId, userId, safeName, date, now);
 
-  res.status(201).json({ name: safeName, timestamp: now });
+  res.status(201).json({ name: safeName, userId, timestamp: now });
+});
+
+// DELETE /api/votes/:restaurantId?date=YYYY-MM-DD
+app.delete("/api/votes/:restaurantId", authenticateToken, (req, res) => {
+  const restaurantId = parseInt(req.params.restaurantId);
+  const today = todayKey();
+  const rawDate = typeof req.query.date === "string" ? req.query.date : today;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : today;
+  const userId = req.user.username;
+
+  const result = db.prepare(
+    "DELETE FROM votes WHERE restaurant_id = ? AND user_id = ? AND date = ?"
+  ).run(restaurantId, userId, date);
+
+  if (result.changes === 0) {
+    return res.status(404).json({ error: "Ääntä ei löydy" });
+  }
+  res.status(200).json({ ok: true });
 });
 
 // ===== Trains =====

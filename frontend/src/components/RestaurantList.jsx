@@ -1,6 +1,6 @@
 import RestaurantCard from "./RestaurantCard";
 
-export default function RestaurantList({ restaurants, votes, onVote, loading, error }) {
+export default function RestaurantList({ restaurants, votes, onVote, onUnvote, loading, error, currentUser }) {
   if (loading) {
     return <div className="loading">Ladataan ravintoloita... 🍽️</div>;
   }
@@ -41,6 +41,8 @@ export default function RestaurantList({ restaurants, votes, onVote, loading, er
             restaurant={r}
             votes={votes[r.id] || []}
             onVote={onVote}
+            onUnvote={onUnvote}
+            currentUser={currentUser}
           />
         </div>
       ))}
