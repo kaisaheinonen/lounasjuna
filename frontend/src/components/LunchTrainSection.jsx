@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function LunchTrainSection({ trains, restaurants, onCreateTrain, onJoinTrain, onLeaveTrain }) {
+export default function LunchTrainSection({ trains, restaurants, onCreateTrain, onJoinTrain, onLeaveTrain, currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     departureLocation: "",
@@ -131,13 +131,15 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
                 {train.participants.map((p) => (
                   <span key={p.id} className="passenger-chip">
                     {p.name}
-                    <button
-                      className="leave-btn"
-                      onClick={() => onLeaveTrain(train.id, p.id)}
-                      title={`Poista ${p.name} junasta`}
-                    >
-                      ×
-                    </button>
+                    {p.userId === currentUser?.username && (
+                      <button
+                        className="leave-btn"
+                        onClick={() => onLeaveTrain(train.id, p.id)}
+                        title="Poista oma ilmoittautuminen"
+                      >
+                        ×
+                      </button>
+                    )}
                   </span>
                 ))}
                 <button

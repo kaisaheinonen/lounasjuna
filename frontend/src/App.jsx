@@ -146,6 +146,7 @@ function App() {
             onCreateTrain={handleCreateTrain}
             onJoinTrain={handleJoinTrain}
             onLeaveTrain={handleLeaveTrain}
+            currentUser={user}
           />
         )}
       </main>

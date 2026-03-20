@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const restaurants = require("./data/restaurants");
 const { fetchLounaat } = require("./scraper/lounaat");
-const { registerRoutes: registerAuthRoutes } = require("./auth/auth");
+const { registerRoutes: registerAuthRoutes, authenticateToken } = require("./auth/auth");
 
 const app = express();
 const PORT = 3001;
@@ -116,7 +116,7 @@ app.get("/api/trains", (req, res) => {
 });
 
 // POST /api/trains  { departureLocation, departureTime, restaurantId, organizerName }
-app.post("/api/trains", (req, res) => {
+app.post("/api/trains", authenticateToken, (req, res) => {
   const { departureLocation, departureTime, restaurantId, organizerName } = req.body;
   if (!departureLocation || !departureTime || !restaurantId) {
     return res.status(400).json({ error: "Pakollisia kenttiä puuttuu" });
@@ -131,7 +131,7 @@ app.post("/api/trains", (req, res) => {
     departureTime: String(departureTime).slice(0, 5),
     restaurantId: parseInt(restaurantId),
     organizerName: safeName,
-    participants: [{ id: participantId, name: safeName, timestamp: participantId }],
+    participants: [{ id: participantId, name: safeName, userId: req.user.username, timestamp: participantId }],
     createdAt: participantId,
   };
 
@@ -143,7 +143,7 @@ app.post("/api/trains", (req, res) => {
 });
 
 // POST /api/trains/:id/join  { name }
-app.post("/api/trains/:id/join", (req, res) => {
+app.post("/api/trains/:id/join", authenticateToken, (req, res) => {
   const trainId = parseInt(req.params.id);
   const safeName = (typeof req.body.name === "string" ? req.body.name.trim().slice(0, 50) : "") || "Anonyymi";
   const date = todayKey();
@@ -154,7 +154,7 @@ app.post("/api/trains/:id/join", (req, res) => {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
 
-  const participant = { id: Date.now(), name: safeName, timestamp: Date.now() };
+  const participant = { id: Date.now(), name: safeName, userId: req.user.username, timestamp: Date.now() };
   train.participants.push(participant);
   saveState(state);
 
@@ -162,7 +162,7 @@ app.post("/api/trains/:id/join", (req, res) => {
 });
 
 // DELETE /api/trains/:id/participants/:participantId
-app.delete("/api/trains/:id/participants/:participantId", (req, res) => {
+app.delete("/api/trains/:id/participants/:participantId", authenticateToken, (req, res) => {
   const trainId = parseInt(req.params.id);
   const participantId = parseInt(req.params.participantId);
   const date = todayKey();
@@ -173,11 +173,14 @@ app.delete("/api/trains/:id/participants/:participantId", (req, res) => {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
 
-  const before = train.participants.length;
-  train.participants = train.participants.filter((p) => p.id !== participantId);
-  if (train.participants.length === before) {
+  const participant = train.participants.find((p) => p.id === participantId);
+  if (!participant) {
     return res.status(404).json({ error: "Osallistujaa ei löydy" });
   }
+  if (participant.userId !== req.user.username) {
+    return res.status(403).json({ error: "Voit poistaa vain oman ilmoittautumisesi" });
+  }
+  train.participants = train.participants.filter((p) => p.id !== participantId);
 
   saveState(state);
   res.status(200).json({ ok: true });

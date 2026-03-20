@@ -5,5 +5,19 @@
     "displayName": "Kaisa H.",
     "passwordHash": "$2b$10$/DZ9UIfK5PnZDIHa8DbXB.DA6Urmb5JzvmmWLXsqHCl3faJJ6TbbS",
     "createdAt": 1774007275721
+  },
+  {
+    "id": 1774007362191,
+    "username": "kaisah",
+    "displayName": "Kaisa",
+    "passwordHash": "$2b$10$9/JVo10VYu0tiuZaeq7M.O/AjFoIsx85aaJy1sPmpyLngPAov1UIC",
+    "createdAt": 1774007362191
+  },
+  {
+    "id": 1774007407900,
+    "username": "teuvo",
+    "displayName": "Teuvo",
+    "passwordHash": "$2b$10$rl9N8oYaPqCfXAkVh9.TFeDTP/02fXxGdnpIbSj72GOGvLHQCBJLe",
+    "createdAt": 1774007407900
   }
 ]
