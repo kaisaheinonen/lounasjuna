@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function LunchTrainSection({ trains, restaurants, onCreateTrain, onJoinTrain, onLeaveTrain, currentUser }) {
+export default function LunchTrainSection({ trains, restaurants, onCreateTrain, onJoinTrain, onLeaveTrain, currentUser, isToday }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     departureLocation: "",
@@ -10,12 +10,14 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
   const [joiningTrain, setJoiningTrain] = useState(null);
 
   const now = new Date();
-  const activeTrains = trains.filter((t) => {
-    const [h, m] = t.departureTime.split(":").map(Number);
-    const trainTime = new Date();
-    trainTime.setHours(h, m, 0, 0);
-    return trainTime >= now;
-  });
+  const activeTrains = isToday
+    ? trains.filter((t) => {
+        const [h, m] = t.departureTime.split(":").map(Number);
+        const trainTime = new Date();
+        trainTime.setHours(h, m, 0, 0);
+        return trainTime >= now;
+      })
+    : trains;
 
   const handleCreate = () => {
     if (!form.departureLocation || !form.departureTime || !form.restaurantId) {
@@ -109,7 +111,7 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
 
       {activeTrains.length === 0 ? (
         <div className="empty-trains">
-          <p>Ei aktiivisia lounasjunia tänään.</p>
+          <p>{isToday ? "Ei aktiivisia lounasjunia tänään." : "Ei lounasjunia tälle päivälle."}</p>
           <p>Aloita ensimmäinen! 🚂</p>
         </div>
       ) : (

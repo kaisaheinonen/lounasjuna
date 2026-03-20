@@ -32,6 +32,49 @@ body {
 .app-header h1 { font-size: 1.8rem; font-weight: 700; }
 .date-label { font-size: 0.9rem; opacity: 0.85; margin-top: 2px; text-transform: capitalize; }
 
+/* ===== Date navigation ===== */
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.date-nav-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.date-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.35); }
+.date-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.date-nav-label {
+  font-size: 1rem;
+  font-weight: 600;
+  min-width: 120px;
+  text-align: center;
+  text-transform: capitalize;
+}
+.date-nav-today {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: white;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.date-nav-today:hover { background: rgba(255,255,255,0.35); }
+
 /* ===== Tab Nav ===== */
 .tab-nav {
   display: flex;

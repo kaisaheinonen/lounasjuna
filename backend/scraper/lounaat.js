@@ -1,6 +1,7 @@
 const { load } = require("cheerio");
 
-const LOUNAAT_URL = "https://www.lounaat.info/joensuu";
+const LOUNAAT_PAGE = "https://www.lounaat.info/joensuu";
+const LOUNAAT_AJAX = "https://www.lounaat.info/ajax/filter";
 
 const DIET_MAP = {
   "item-diet-l": "L",
@@ -9,17 +10,69 @@ const DIET_MAP = {
   "item-diet-v": "V",
 };
 
-async function fetchLounaat() {
-  const res = await fetch(LOUNAAT_URL, {
+// Muuntaa ISO-päivämäärän lounaat.info day-numeroksi
+// Tämä viikko: ma=1, ti=2, ke=3, to=4, pe=5, la=6, su=7
+// Ensi viikko: ensi ma=8, ensi ti=9, ...
+function dateToDay(isoDate) {
+  const target = new Date(isoDate + "T12:00:00");
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  const dowOf = (d) => (d.getDay() === 0 ? 7 : d.getDay()); // 1=ma..7=su
+  const mondayOf = (d) => {
+    const m = new Date(d);
+    m.setDate(d.getDate() - (dowOf(d) - 1));
+    m.setHours(0, 0, 0, 0);
+    return m;
+  };
+
+  const weekDiff = Math.round(
+    (mondayOf(target) - mondayOf(today)) / (7 * 24 * 3600 * 1000)
+  );
+  return weekDiff * 7 + dowOf(target);
+}
+
+async function fetchLounaat(date) {
+  // Haetaan aina ensin pääsivu session-cookien saamiseksi
+  const pageRes = await fetch(LOUNAAT_PAGE, {
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; lounasjuna-app/1.0)",
       Accept: "text/html",
     },
   });
-  if (!res.ok) {
-    throw new Error(`lounaat.info palautti ${res.status}`);
+  if (!pageRes.ok) {
+    throw new Error(`lounaat.info palautti ${pageRes.status}`);
   }
-  const html = await res.text();
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const targetDate = date || todayISO;
+
+  // Tänään: parsitaan suoraan pääsivun HTML
+  if (targetDate === todayISO) {
+    const html = await pageRes.text();
+    return parseRestaurants(html);
+  }
+
+  // Muu päivä: käytetään AJAX-endpointia session-cookien kanssa
+  const cookieVal = (pageRes.headers.get("set-cookie") || "").split(";")[0];
+  const day = dateToDay(targetDate);
+
+  const ajaxRes = await fetch(
+    `${LOUNAAT_AJAX}?view=lahistolla&day=${day}&page=0&coords=false`,
+    {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; lounasjuna-app/1.0)",
+        Accept: "*/*",
+        Referer: LOUNAAT_PAGE,
+        "X-Requested-With": "XMLHttpRequest",
+        Cookie: cookieVal,
+      },
+    }
+  );
+  if (!ajaxRes.ok) {
+    throw new Error(`lounaat.info ajax palautti ${ajaxRes.status}`);
+  }
+  const html = await ajaxRes.text();
   return parseRestaurants(html);
 }
 

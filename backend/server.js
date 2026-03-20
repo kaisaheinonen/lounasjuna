@@ -14,19 +14,21 @@ app.use(express.json());
 // Auth routes
 registerAuthRoutes(app);
 
-// ===== Lounaat.info cache (päivitetään kerran tunnissa) =====
-let liveCache = { data: null, fetchedAt: 0 };
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 tunti
+// ===== Lounaat.info cache (per päivä, TTL 1h) =====
+const liveCache = new Map(); // key: date-string, value: { data, fetchedAt }
+const CACHE_TTL_MS = 60 * 60 * 1000;
 
-async function getLiveRestaurants() {
+async function getLiveRestaurants(date) {
   const now = Date.now();
-  if (!liveCache.data || now - liveCache.fetchedAt > CACHE_TTL_MS) {
-    console.log("Haetaan lounaat.info...");
-    liveCache.data = await fetchLounaat();
-    liveCache.fetchedAt = now;
-    console.log(`Haettu ${liveCache.data.length} ravintolaa`);
+  const cached = liveCache.get(date);
+  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.data;
   }
-  return liveCache.data;
+  console.log(`Haetaan lounaat.info (${date})...`);
+  const data = await fetchLounaat(date);
+  liveCache.set(date, { data, fetchedAt: now });
+  console.log(`Haettu ${data.length} ravintolaa päivälle ${date}`);
+  return data;
 }
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -51,10 +53,13 @@ function buildTrain(t, participants) {
 
 // ===== Restaurants =====
 
-// GET /api/restaurants — palauttaa lounaat.info-datan, fallback mock-dataan
+// GET /api/restaurants?date=YYYY-MM-DD — palauttaa lounaat.info-datan, fallback mock-dataan
 app.get("/api/restaurants", async (req, res) => {
+  const date = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+    ? req.query.date
+    : todayKey();
   try {
-    const data = await getLiveRestaurants();
+    const data = await getLiveRestaurants(date);
     res.json(data);
   } catch (err) {
     console.error("lounaat.info haku epäonnistui, käytetään mock-dataa:", err.message);
@@ -62,11 +67,14 @@ app.get("/api/restaurants", async (req, res) => {
   }
 });
 
-// GET /api/restaurants/refresh — pakota uusi haku (ohittaa cachen)
+// POST /api/restaurants/refresh?date=YYYY-MM-DD — pakota uusi haku (ohittaa cachen)
 app.post("/api/restaurants/refresh", async (req, res) => {
-  liveCache = { data: null, fetchedAt: 0 };
+  const date = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+    ? req.query.date
+    : todayKey();
+  liveCache.delete(date);
   try {
-    const data = await getLiveRestaurants();
+    const data = await getLiveRestaurants(date);
     res.json({ ok: true, count: data.length });
   } catch (err) {
     res.status(502).json({ error: err.message });
@@ -90,14 +98,16 @@ app.get("/api/votes", (req, res) => {
   res.json(result);
 });
 
-// POST /api/votes  { restaurantId, name }
+// POST /api/votes  { restaurantId, name, date? }
 app.post("/api/votes", (req, res) => {
   const { restaurantId, name } = req.body;
   if (!restaurantId || typeof restaurantId !== "number") {
     return res.status(400).json({ error: "restaurantId puuttuu tai ei ole numero" });
   }
   const safeName = (typeof name === "string" ? name.trim().slice(0, 50) : "") || "Anonyymi";
-  const date = todayKey();
+  const today = todayKey();
+  const rawDate = typeof req.body.date === "string" ? req.body.date : today;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && rawDate >= today ? rawDate : today;
   const now = Date.now();
   const userId = req.body.userId || "anon";
 
@@ -132,14 +142,16 @@ app.get("/api/trains", (req, res) => {
   res.json(trains.map((t) => buildTrain(t, byTrain[t.id] || [])));
 });
 
-// POST /api/trains  { departureLocation, departureTime, restaurantId, organizerName }
+// POST /api/trains  { departureLocation, departureTime, restaurantId, organizerName, date? }
 app.post("/api/trains", authenticateToken, (req, res) => {
   const { departureLocation, departureTime, restaurantId, organizerName } = req.body;
   if (!departureLocation || !departureTime || !restaurantId) {
     return res.status(400).json({ error: "Pakollisia kenttiä puuttuu" });
   }
   const safeName = (typeof organizerName === "string" ? organizerName.trim().slice(0, 50) : "") || "Anonyymi";
-  const date = todayKey();
+  const today = todayKey();
+  const rawDate = typeof req.body.date === "string" ? req.body.date : today;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && rawDate >= today ? rawDate : today;
   const now = Date.now();
 
   db.prepare(
@@ -159,9 +171,8 @@ app.post("/api/trains", authenticateToken, (req, res) => {
 app.post("/api/trains/:id/join", authenticateToken, (req, res) => {
   const trainId = parseInt(req.params.id);
   const safeName = (typeof req.body.name === "string" ? req.body.name.trim().slice(0, 50) : "") || "Anonyymi";
-  const date = todayKey();
 
-  const train = db.prepare("SELECT * FROM trains WHERE id = ? AND date = ?").get(trainId, date);
+  const train = db.prepare("SELECT * FROM trains WHERE id = ?").get(trainId);
   if (!train) {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
@@ -178,9 +189,8 @@ app.post("/api/trains/:id/join", authenticateToken, (req, res) => {
 app.delete("/api/trains/:id/participants/:participantId", authenticateToken, (req, res) => {
   const trainId = parseInt(req.params.id);
   const participantId = parseInt(req.params.participantId);
-  const date = todayKey();
 
-  const train = db.prepare("SELECT * FROM trains WHERE id = ? AND date = ?").get(trainId, date);
+  const train = db.prepare("SELECT * FROM trains WHERE id = ?").get(trainId);
   if (!train) {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
