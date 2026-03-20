@@ -1,0 +1,88 @@
+const restaurants = [
+  {
+    id: 1,
+    name: "Ravintola Wanha Jokela",
+    address: "Torikatu 26, Joensuu",
+    distance: "0.3 km",
+    cuisine: "Suomalainen",
+    phone: "013 123 4567",
+    menu: [
+      { id: 1, name: "Lihapullat perunamuusilla ja puolukkahillolla", price: 10.5, tags: ["liha"] },
+      { id: 2, name: "Uunilohi sitruunavoikastikkeella ja riisillä", price: 11.5, tags: ["kala"] },
+      { id: 3, name: "Kasviskeitto ja tuore leipä", price: 9.0, tags: ["kasvis", "vegaani"] },
+      { id: 4, name: "Kanafileepasta tomaattikastikkeessa", price: 10.0, tags: ["liha"] },
+    ],
+  },
+  {
+    id: 2,
+    name: "Bistro Kauppakeskus",
+    address: "Kauppakatu 35, Joensuu",
+    distance: "0.5 km",
+    cuisine: "Kansainvälinen",
+    phone: "013 234 5678",
+    menu: [
+      { id: 1, name: "Burrito kanalla ja guacamolella", price: 11.0, tags: ["liha"] },
+      { id: 2, name: "Falafel-wrap tahini-kastikkeella", price: 10.0, tags: ["kasvis", "vegaani"] },
+      { id: 3, name: "Pulled pork -pannari coleslaw'lla", price: 12.5, tags: ["liha"] },
+      { id: 4, name: "Caesar-salaatti parmesan-lastulla", price: 9.5, tags: ["kasvis"] },
+    ],
+  },
+  {
+    id: 3,
+    name: "Pizzeria Romano",
+    address: "Siltakatu 12, Joensuu",
+    distance: "0.8 km",
+    cuisine: "Italialainen",
+    phone: "013 345 6789",
+    menu: [
+      { id: 1, name: "Pizza Margherita", price: 10.0, tags: ["kasvis"] },
+      { id: 2, name: "Pizza Prosciutto e Funghi", price: 12.0, tags: ["liha"] },
+      { id: 3, name: "Pasta Carbonara", price: 11.0, tags: ["liha"] },
+      { id: 4, name: "Risotto ai funghi (vegaani)", price: 11.5, tags: ["kasvis", "vegaani"] },
+    ],
+  },
+  {
+    id: 4,
+    name: "Aasian Helmet",
+    address: "Rantakatu 5, Joensuu",
+    distance: "0.6 km",
+    cuisine: "Aasialainen",
+    phone: "013 456 7890",
+    menu: [
+      { id: 1, name: "Pad Thai katkaravuilla", price: 11.5, tags: ["kala"] },
+      { id: 2, name: "Tom Kha -keitto kanalla", price: 10.5, tags: ["liha"] },
+      { id: 3, name: "Tofu-wokkia nuudeleiden kera", price: 10.0, tags: ["kasvis", "vegaani"] },
+      { id: 4, name: "Teriyaki-nauta riisillä", price: 12.0, tags: ["liha"] },
+    ],
+  },
+  {
+    id: 5,
+    name: "Cafe Tori",
+    address: "Torikatu 10, Joensuu",
+    distance: "0.2 km",
+    cuisine: "Kahvila-lounas",
+    phone: "013 567 8901",
+    menu: [
+      { id: 1, name: "Päivän keitto + sämpylä", price: 8.5, tags: ["kasvis"] },
+      { id: 2, name: "Sienipiirakka salaatilla", price: 9.5, tags: ["kasvis"] },
+      { id: 3, name: "Savulohipasta kermaviilillä", price: 10.5, tags: ["kala"] },
+      { id: 4, name: "Kanapasta aurinkokuivatulla tomaatilla", price: 10.0, tags: ["liha"] },
+    ],
+  },
+  {
+    id: 6,
+    name: "Ravintola Carelia",
+    address: "Koskikatu 1, Joensuu",
+    distance: "1.1 km",
+    cuisine: "Karjalainen",
+    phone: "013 678 9012",
+    menu: [
+      { id: 1, name: "Karjalan paisti perunoilla", price: 12.0, tags: ["liha"] },
+      { id: 2, name: "Kalakukko ja piimä", price: 11.0, tags: ["kala"] },
+      { id: 3, name: "Karjalan piirakka munavoin kera (lounas)", price: 8.0, tags: ["kasvis"] },
+      { id: 4, name: "Poronkäristys perunamuusilla", price: 14.0, tags: ["liha"] },
+    ],
+  },
+];
+
+module.exports = restaurants;
