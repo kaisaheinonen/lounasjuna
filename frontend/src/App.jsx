@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import RestaurantList from "./components/RestaurantList";
 import LunchTrainSection from "./components/LunchTrainSection";
+import LoginPage from "./components/LoginPage";
+import { useAuth } from "./contexts/AuthContext";
 import './App.css'
 
 const API_BASE = "http://localhost:3001/api";
@@ -8,6 +10,8 @@ const API_BASE = "http://localhost:3001/api";
 const POLL_INTERVAL = 5000;
 
 function App() {
+  const { user, loading: authLoading, logout, getAuthHeaders } = useAuth();
+
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,6 +31,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     fetch(`${API_BASE}/restaurants`)
       .then((res) => {
         if (!res.ok) throw new Error("Palvelinvirhe");
@@ -44,13 +49,13 @@ function App() {
     fetchSharedData();
     const timer = setInterval(fetchSharedData, POLL_INTERVAL);
     return () => clearInterval(timer);
-  }, [fetchSharedData]);
+  }, [fetchSharedData, user]);
 
-  const handleVote = async (restaurantId, name) => {
+  const handleVote = async (restaurantId) => {
     const res = await fetch(`${API_BASE}/votes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ restaurantId, name }),
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ restaurantId, name: user.displayName }),
     });
     if (res.ok) fetchSharedData();
   };
@@ -58,17 +63,17 @@ function App() {
   const handleCreateTrain = async (formData) => {
     const res = await fetch(`${API_BASE}/trains`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ ...formData, organizerName: user.displayName }),
     });
     if (res.ok) fetchSharedData();
   };
 
-  const handleJoinTrain = async (trainId, name) => {
+  const handleJoinTrain = async (trainId) => {
     const res = await fetch(`${API_BASE}/trains/${trainId}/join`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ name: user.displayName }),
     });
     if (res.ok) fetchSharedData();
   };
@@ -76,9 +81,13 @@ function App() {
   const handleLeaveTrain = async (trainId, participantId) => {
     const res = await fetch(`${API_BASE}/trains/${trainId}/participants/${participantId}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (res.ok) fetchSharedData();
   };
+
+  if (authLoading) return <div className="loading">Ladataan... 🚂</div>;
+  if (!user) return <LoginPage />;
 
   const dateLabel = new Date().toLocaleDateString("fi-FI", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -97,6 +106,10 @@ function App() {
         <div className="header-content">
           <h1>🚂 Lounasjuna</h1>
           <p className="date-label">{dateLabel}</p>
+        </div>
+        <div className="header-user">
+          <span className="header-username">👤 {user.displayName}</span>
+          <button className="logout-btn" onClick={logout}>Kirjaudu ulos</button>
         </div>
       </header>
 

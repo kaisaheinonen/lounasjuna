@@ -4,12 +4,16 @@ const fs = require("fs");
 const path = require("path");
 const restaurants = require("./data/restaurants");
 const { fetchLounaat } = require("./scraper/lounaat");
+const { registerRoutes: registerAuthRoutes } = require("./auth/auth");
 
 const app = express();
 const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Auth routes
+registerAuthRoutes(app);
 
 // ===== Lounaat.info cache (päivitetään kerran tunnissa) =====
 let liveCache = { data: null, fetchedAt: 0 };

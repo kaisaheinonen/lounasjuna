@@ -6,10 +6,8 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
     departureLocation: "",
     departureTime: "",
     restaurantId: "",
-    organizerName: "",
   });
   const [joiningTrain, setJoiningTrain] = useState(null);
-  const [joinerName, setJoinerName] = useState("");
 
   const now = new Date();
   const activeTrains = trains.filter((t) => {
@@ -25,16 +23,14 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
     }
     onCreateTrain({
       ...form,
-      organizerName: form.organizerName.trim() || "Anonyymi",
       restaurantId: parseInt(form.restaurantId),
     });
-    setForm({ departureLocation: "", departureTime: "", restaurantId: "", organizerName: "" });
+    setForm({ departureLocation: "", departureTime: "", restaurantId: "" });
     setShowForm(false);
   };
 
   const handleJoin = (trainId) => {
-    onJoinTrain(trainId, joinerName.trim() || "Anonyymi");
-    setJoinerName("");
+    onJoinTrain(trainId);
     setJoiningTrain(null);
   };
 
@@ -93,18 +89,6 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              Nimesi
-              <input
-                type="text"
-                placeholder="Valinnainen"
-                value={form.organizerName}
-                onChange={(e) =>
-                  setForm({ ...form, organizerName: e.target.value })
-                }
-                maxLength={50}
-              />
             </label>
           </div>
           <div className="form-actions">
@@ -166,15 +150,6 @@ export default function LunchTrainSection({ trains, restaurants, onCreateTrain, 
 
               {joiningTrain === train.id && (
                 <div className="join-form">
-                  <input
-                    type="text"
-                    placeholder="Nimesi (valinnainen)"
-                    value={joinerName}
-                    onChange={(e) => setJoinerName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleJoin(train.id)}
-                    autoFocus
-                    maxLength={50}
-                  />
                   <button
                     className="btn-primary"
                     onClick={() => handleJoin(train.id)}

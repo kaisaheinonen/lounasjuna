@@ -14,17 +14,9 @@ function formatPrice(price) {
 }
 
 export default function RestaurantCard({ restaurant, votes, onVote }) {
-  const [showVoteModal, setShowVoteModal] = useState(false);
-  const [voterName, setVoterName] = useState("");
   const [expanded, setExpanded] = useState(false);
 
   const voteCount = votes ? votes.length : 0;
-
-  const handleVoteSubmit = () => {
-    onVote(restaurant.id, voterName.trim() || "Anonyymi");
-    setVoterName("");
-    setShowVoteModal(false);
-  };
 
   // Support both mock data (cuisine) and live data (hours)
   const metaParts = [
@@ -45,7 +37,7 @@ export default function RestaurantCard({ restaurant, votes, onVote }) {
             className="vote-btn"
             onClick={(e) => {
               e.stopPropagation();
-              setShowVoteModal(true);
+              onVote(restaurant.id);
             }}
             title="Äänestä tätä ravintolaa"
           >
@@ -96,37 +88,6 @@ export default function RestaurantCard({ restaurant, votes, onVote }) {
               );
             })}
           </ul>
-        </div>
-      )}
-
-      {showVoteModal && (
-        <div className="modal-overlay" onClick={() => setShowVoteModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Äänestä ravintolaa</h3>
-            <p>
-              <strong>{restaurant.name}</strong>
-            </p>
-            <input
-              type="text"
-              placeholder="Nimesi (valinnainen)"
-              value={voterName}
-              onChange={(e) => setVoterName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleVoteSubmit()}
-              autoFocus
-              maxLength={50}
-            />
-            <div className="modal-actions">
-              <button className="btn-primary" onClick={handleVoteSubmit}>
-                👍 Äänestä
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowVoteModal(false)}
-              >
-                Peruuta
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
