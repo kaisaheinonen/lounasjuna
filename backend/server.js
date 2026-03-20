@@ -1,10 +1,9 @@
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
 const restaurants = require("./data/restaurants");
 const { fetchLounaat } = require("./scraper/lounaat");
 const { registerRoutes: registerAuthRoutes, authenticateToken } = require("./auth/auth");
+const db = require("./db");
 
 const app = express();
 const PORT = 3001;
@@ -30,31 +29,25 @@ async function getLiveRestaurants() {
   return liveCache.data;
 }
 
-// ===== Persistent JSON storage =====
-const DATA_FILE = path.join(__dirname, "data", "state.json");
-
-function loadState() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    }
-  } catch (e) {
-    console.error("Tilan lataus epäonnistui, aloitetaan tyhjältä:", e.message);
-  }
-  return { votes: {}, trains: {} };
-}
-
-function saveState(state) {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), "utf8");
-  } catch (e) {
-    console.error("Tilan tallennus epäonnistui:", e.message);
-  }
-}
-
-let state = loadState();
-
 const todayKey = () => new Date().toISOString().slice(0, 10);
+
+// Apufunktio: muodostaa junaobjektin tietokantariveistä
+function buildTrain(t, participants) {
+  return {
+    id: t.id,
+    departureLocation: t.departure_location,
+    departureTime: t.departure_time,
+    restaurantId: t.restaurant_id,
+    organizerName: t.organizer_name,
+    participants: participants.map((p) => ({
+      id: p.id,
+      name: p.display_name,
+      userId: p.user_id,
+      timestamp: p.created_at,
+    })),
+    createdAt: t.created_at,
+  };
+}
 
 // ===== Restaurants =====
 
@@ -85,7 +78,16 @@ app.post("/api/restaurants/refresh", async (req, res) => {
 // GET /api/votes?date=YYYY-MM-DD  (defaults to today)
 app.get("/api/votes", (req, res) => {
   const date = req.query.date || todayKey();
-  res.json(state.votes[date] || {});
+  const rows = db.prepare(
+    "SELECT restaurant_id, display_name, created_at FROM votes WHERE date = ?"
+  ).all(date);
+  const result = {};
+  for (const row of rows) {
+    const key = String(row.restaurant_id);
+    if (!result[key]) result[key] = [];
+    result[key].push({ name: row.display_name, timestamp: row.created_at });
+  }
+  res.json(result);
 });
 
 // POST /api/votes  { restaurantId, name }
@@ -96,15 +98,14 @@ app.post("/api/votes", (req, res) => {
   }
   const safeName = (typeof name === "string" ? name.trim().slice(0, 50) : "") || "Anonyymi";
   const date = todayKey();
+  const now = Date.now();
+  const userId = req.body.userId || "anon";
 
-  if (!state.votes[date]) state.votes[date] = {};
-  if (!state.votes[date][restaurantId]) state.votes[date][restaurantId] = [];
+  db.prepare(
+    "INSERT INTO votes (restaurant_id, user_id, display_name, date, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run(restaurantId, userId, safeName, date, now);
 
-  const vote = { name: safeName, timestamp: Date.now() };
-  state.votes[date][restaurantId].push(vote);
-  saveState(state);
-
-  res.status(201).json(vote);
+  res.status(201).json({ name: safeName, timestamp: now });
 });
 
 // ===== Trains =====
@@ -112,7 +113,23 @@ app.post("/api/votes", (req, res) => {
 // GET /api/trains?date=YYYY-MM-DD  (defaults to today)
 app.get("/api/trains", (req, res) => {
   const date = req.query.date || todayKey();
-  res.json(state.trains[date] || []);
+  const trains = db.prepare(
+    "SELECT * FROM trains WHERE date = ? ORDER BY created_at ASC"
+  ).all(date);
+  if (trains.length === 0) return res.json([]);
+
+  const ids = trains.map((t) => t.id);
+  const placeholders = ids.map(() => "?").join(",");
+  const participants = db.prepare(
+    `SELECT * FROM train_participants WHERE train_id IN (${placeholders}) ORDER BY created_at ASC`
+  ).all(...ids);
+
+  const byTrain = {};
+  for (const p of participants) {
+    if (!byTrain[p.train_id]) byTrain[p.train_id] = [];
+    byTrain[p.train_id].push(p);
+  }
+  res.json(trains.map((t) => buildTrain(t, byTrain[t.id] || [])));
 });
 
 // POST /api/trains  { departureLocation, departureTime, restaurantId, organizerName }
@@ -123,23 +140,19 @@ app.post("/api/trains", authenticateToken, (req, res) => {
   }
   const safeName = (typeof organizerName === "string" ? organizerName.trim().slice(0, 50) : "") || "Anonyymi";
   const date = todayKey();
+  const now = Date.now();
 
-  const participantId = Date.now();
-  const newTrain = {
-    id: participantId,
-    departureLocation: String(departureLocation).slice(0, 100),
-    departureTime: String(departureTime).slice(0, 5),
-    restaurantId: parseInt(restaurantId),
-    organizerName: safeName,
-    participants: [{ id: participantId, name: safeName, userId: req.user.username, timestamp: participantId }],
-    createdAt: participantId,
-  };
+  db.prepare(
+    "INSERT INTO trains (id, departure_location, departure_time, restaurant_id, organizer_name, date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run(now, String(departureLocation).slice(0, 100), String(departureTime).slice(0, 5), parseInt(restaurantId), safeName, date, now);
 
-  if (!state.trains[date]) state.trains[date] = [];
-  state.trains[date].push(newTrain);
-  saveState(state);
+  db.prepare(
+    "INSERT INTO train_participants (id, train_id, user_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run(now, now, req.user.username, safeName, now);
 
-  res.status(201).json(newTrain);
+  const train = db.prepare("SELECT * FROM trains WHERE id = ?").get(now);
+  const participant = db.prepare("SELECT * FROM train_participants WHERE train_id = ?").all(now);
+  res.status(201).json(buildTrain(train, participant));
 });
 
 // POST /api/trains/:id/join  { name }
@@ -148,17 +161,17 @@ app.post("/api/trains/:id/join", authenticateToken, (req, res) => {
   const safeName = (typeof req.body.name === "string" ? req.body.name.trim().slice(0, 50) : "") || "Anonyymi";
   const date = todayKey();
 
-  const trains = state.trains[date] || [];
-  const train = trains.find((t) => t.id === trainId);
+  const train = db.prepare("SELECT * FROM trains WHERE id = ? AND date = ?").get(trainId, date);
   if (!train) {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
 
-  const participant = { id: Date.now(), name: safeName, userId: req.user.username, timestamp: Date.now() };
-  train.participants.push(participant);
-  saveState(state);
+  const now = Date.now();
+  db.prepare(
+    "INSERT INTO train_participants (id, train_id, user_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run(now, trainId, req.user.username, safeName, now);
 
-  res.status(201).json(participant);
+  res.status(201).json({ id: now, name: safeName, userId: req.user.username, timestamp: now });
 });
 
 // DELETE /api/trains/:id/participants/:participantId
@@ -167,22 +180,22 @@ app.delete("/api/trains/:id/participants/:participantId", authenticateToken, (re
   const participantId = parseInt(req.params.participantId);
   const date = todayKey();
 
-  const trains = state.trains[date] || [];
-  const train = trains.find((t) => t.id === trainId);
+  const train = db.prepare("SELECT * FROM trains WHERE id = ? AND date = ?").get(trainId, date);
   if (!train) {
     return res.status(404).json({ error: "Junaa ei löydy" });
   }
 
-  const participant = train.participants.find((p) => p.id === participantId);
+  const participant = db.prepare(
+    "SELECT * FROM train_participants WHERE id = ? AND train_id = ?"
+  ).get(participantId, trainId);
   if (!participant) {
     return res.status(404).json({ error: "Osallistujaa ei löydy" });
   }
-  if (participant.userId !== req.user.username) {
+  if (participant.user_id !== req.user.username) {
     return res.status(403).json({ error: "Voit poistaa vain oman ilmoittautumisesi" });
   }
-  train.participants = train.participants.filter((p) => p.id !== participantId);
 
-  saveState(state);
+  db.prepare("DELETE FROM train_participants WHERE id = ?").run(participantId);
   res.status(200).json({ ok: true });
 });
 

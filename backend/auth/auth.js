@@ -1,30 +1,13 @@
-const fs = require("fs");
-const path = require("path");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const db = require("../db");
 
-const USERS_FILE = path.join(__dirname, "../data/users.json");
 const JWT_SECRET = process.env.JWT_SECRET || "lounasjuna-secret-change-in-prod";
 const SALT_ROUNDS = 10;
 
-function loadUsers() {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
-    }
-  } catch (e) {
-    console.error("Käyttäjien lataus epäonnistui:", e.message);
-  }
-  return [];
-}
-
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
-}
-
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, username: user.username, displayName: user.displayName },
+    { id: user.id, username: user.username, displayName: user.display_name ?? user.displayName },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -60,17 +43,19 @@ function registerRoutes(app) {
       return res.status(400).json({ error: "Salasanan oltava vähintään 4 merkkiä" });
     }
 
-    const users = loadUsers();
-    if (users.find((u) => u.username === safeUsername)) {
+    const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(safeUsername);
+    if (existing) {
       return res.status(409).json({ error: "Käyttäjätunnus on jo käytössä" });
     }
 
     const hash = await bcrypt.hash(String(password), SALT_ROUNDS);
-    const user = { id: Date.now(), username: safeUsername, displayName: safeDisplay, passwordHash: hash, createdAt: Date.now() };
-    users.push(user);
-    saveUsers(users);
+    const now = Date.now();
+    db.prepare(
+      "INSERT INTO users (id, username, display_name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).run(now, safeUsername, safeDisplay, hash, now);
+    const user = { id: now, username: safeUsername, display_name: safeDisplay };
 
-    res.status(201).json({ token: signToken(user), user: { id: user.id, username: user.username, displayName: user.displayName } });
+    res.status(201).json({ token: signToken(user), user: { id: user.id, username: user.username, displayName: user.display_name } });
   });
 
   // POST /api/auth/login
@@ -79,16 +64,15 @@ function registerRoutes(app) {
     if (!username || !password) {
       return res.status(400).json({ error: "Käyttäjätunnus ja salasana vaaditaan" });
     }
-    const users = loadUsers();
-    const user = users.find((u) => u.username === String(username).trim().toLowerCase());
+    const user = db.prepare("SELECT * FROM users WHERE username = ?").get(String(username).trim().toLowerCase());
     if (!user) {
       return res.status(401).json({ error: "Väärä käyttäjätunnus tai salasana" });
     }
-    const ok = await bcrypt.compare(String(password), user.passwordHash);
+    const ok = await bcrypt.compare(String(password), user.password_hash);
     if (!ok) {
       return res.status(401).json({ error: "Väärä käyttäjätunnus tai salasana" });
     }
-    res.json({ token: signToken(user), user: { id: user.id, username: user.username, displayName: user.displayName } });
+    res.json({ token: signToken(user), user: { id: user.id, username: user.username, displayName: user.display_name } });
   });
 
   // GET /api/auth/me  (token refresh / validation)

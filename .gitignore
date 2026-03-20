@@ -6,6 +6,10 @@ frontend/dist/
 
 # Backend runtime data (ei versiohallintaan)
 backend/data/state.json
+backend/data/lounasjuna.db
+backend/data/lounasjuna.db-shm
+backend/data/lounasjuna.db-wal
+backend/data/users.json
 
 # Environment files
 .env
