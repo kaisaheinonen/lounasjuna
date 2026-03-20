@@ -1,11 +1,17 @@
 import { useState } from "react";
 
-const TAG_LABELS = {
-  liha: "🥩 Liha",
-  kala: "🐟 Kala",
-  kasvis: "🥦 Kasvis",
-  vegaani: "🌱 Vegaani",
+const DIET_LABELS = {
+  L: { label: "L", title: "Laktoositon" },
+  G: { label: "G", title: "Gluteeniton" },
+  M: { label: "M", title: "Maidoton" },
+  V: { label: "V", title: "Vegaani" },
 };
+
+function formatPrice(price) {
+  if (price == null) return null;
+  if (typeof price === "number") return `${price.toFixed(2)} €`;
+  return String(price).replace("e", " €");
+}
 
 export default function RestaurantCard({ restaurant, votes, onVote }) {
   const [showVoteModal, setShowVoteModal] = useState(false);
@@ -20,14 +26,19 @@ export default function RestaurantCard({ restaurant, votes, onVote }) {
     setShowVoteModal(false);
   };
 
+  // Support both mock data (cuisine) and live data (hours)
+  const metaParts = [
+    restaurant.address,
+    restaurant.distance,
+    restaurant.hours ? `🕐 ${restaurant.hours}` : restaurant.cuisine,
+  ].filter(Boolean);
+
   return (
     <div className={`restaurant-card ${voteCount > 0 ? "has-votes" : ""}`}>
       <div className="restaurant-header" onClick={() => setExpanded(!expanded)}>
         <div className="restaurant-info">
           <h3>{restaurant.name}</h3>
-          <span className="restaurant-meta">
-            📍 {restaurant.address} · {restaurant.distance} · {restaurant.cuisine}
-          </span>
+          <span className="restaurant-meta">{metaParts.join(" · ")}</span>
         </div>
         <div className="restaurant-actions">
           <button
@@ -58,21 +69,32 @@ export default function RestaurantCard({ restaurant, votes, onVote }) {
         <div className="menu-list">
           <h4>Päivän lounaslista</h4>
           <ul>
-            {restaurant.menu.map((item) => (
-              <li key={item.id} className="menu-item">
-                <span className="menu-name">{item.name}</span>
-                <div className="menu-right">
-                  <span className="menu-price">{item.price.toFixed(2)} €</span>
-                  <div className="menu-tags">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className={`tag tag-${tag}`}>
-                        {TAG_LABELS[tag]}
-                      </span>
-                    ))}
+            {restaurant.menu.map((item) => {
+              const diets = item.diets || item.tags || [];
+              const price = formatPrice(item.price);
+              return (
+                <li key={item.id} className="menu-item">
+                  <span className="menu-name">{item.name}</span>
+                  <div className="menu-right">
+                    {price && <span className="menu-price">{price}</span>}
+                    {diets.length > 0 && (
+                      <div className="menu-tags">
+                        {diets.map((d) => {
+                          const info = DIET_LABELS[d];
+                          return info ? (
+                            <span key={d} className="tag tag-diet" title={info.title}>
+                              {info.label}
+                            </span>
+                          ) : (
+                            <span key={d} className={`tag tag-${d}`}>{d}</span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

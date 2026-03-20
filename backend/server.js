@@ -3,12 +3,28 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const restaurants = require("./data/restaurants");
+const { fetchLounaat } = require("./scraper/lounaat");
 
 const app = express();
 const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// ===== Lounaat.info cache (päivitetään kerran tunnissa) =====
+let liveCache = { data: null, fetchedAt: 0 };
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 tunti
+
+async function getLiveRestaurants() {
+  const now = Date.now();
+  if (!liveCache.data || now - liveCache.fetchedAt > CACHE_TTL_MS) {
+    console.log("Haetaan lounaat.info...");
+    liveCache.data = await fetchLounaat();
+    liveCache.fetchedAt = now;
+    console.log(`Haettu ${liveCache.data.length} ravintolaa`);
+  }
+  return liveCache.data;
+}
 
 // ===== Persistent JSON storage =====
 const DATA_FILE = path.join(__dirname, "data", "state.json");
@@ -38,16 +54,26 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 
 // ===== Restaurants =====
 
-app.get("/api/restaurants", (req, res) => {
-  res.json(restaurants);
+// GET /api/restaurants — palauttaa lounaat.info-datan, fallback mock-dataan
+app.get("/api/restaurants", async (req, res) => {
+  try {
+    const data = await getLiveRestaurants();
+    res.json(data);
+  } catch (err) {
+    console.error("lounaat.info haku epäonnistui, käytetään mock-dataa:", err.message);
+    res.json(restaurants);
+  }
 });
 
-app.get("/api/restaurants/:id", (req, res) => {
-  const restaurant = restaurants.find((r) => r.id === parseInt(req.params.id));
-  if (!restaurant) {
-    return res.status(404).json({ error: "Ravintolaa ei löydy" });
+// GET /api/restaurants/refresh — pakota uusi haku (ohittaa cachen)
+app.post("/api/restaurants/refresh", async (req, res) => {
+  liveCache = { data: null, fetchedAt: 0 };
+  try {
+    const data = await getLiveRestaurants();
+    res.json({ ok: true, count: data.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
-  res.json(restaurant);
 });
 
 // ===== Votes =====

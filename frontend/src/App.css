@@ -161,6 +161,7 @@ body {
 .tag-kala    { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
 .tag-kasvis  { background: #dcfce7; color: #14532d; border-color: #86efac; }
 .tag-vegaani { background: #d1fae5; color: #064e3b; border-color: #6ee7b7; }
+.tag-diet    { background: #f3f4f6; color: #374151; border-color: #d1d5db; font-weight: 600; }
 
 /* ===== Loading & Error ===== */
 .loading { text-align: center; padding: 48px; color: var(--text-muted); font-size: 1.1rem; }
